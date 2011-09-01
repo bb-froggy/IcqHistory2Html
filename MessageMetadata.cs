@@ -6,6 +6,7 @@ using System.IO;
 
 namespace Icq2003Pro2Html
 {
+    // TODO: Abstract this with an interface, so all messages use the same interface
     /// <summary>
     /// Represents an instant message either received or sent
     /// </summary>
@@ -29,13 +30,13 @@ namespace Icq2003Pro2Html
 
         protected override void parseInnerData(byte[] innerData)
         {
-            MemoryStream ms = new MemoryStream(innerData, false);
-            ms.Seek(0x1a, SeekOrigin.Current);  // These are always the same (almost), so differentiation is not needed
+            ICQDataStream strmContent = new ICQDataStream(new MemoryStream(innerData, false));
+            strmContent.Seek(0x1a, SeekOrigin.Current);  // These are always the same (almost), so differentiation is not needed
 
-            while (ms.Position < ms.Length)
+            while (strmContent.Position < strmContent.Length)
             {
-                string nextLabel = readString(ms);
-                handleTag(nextLabel, ms);
+                string nextLabel = strmContent.readString();
+                handleTag(nextLabel, strmContent);
             }
             //string answerFlagsLabel = readString(ms);   // "AnswerFlags"
             //handleTag(answerFlagsLabel, ms);
@@ -50,17 +51,17 @@ namespace Icq2003Pro2Html
             //handleTag(extidLabel, ms);
         }
 
-        private void handleTag(string tagName, Stream streamContent)
+        private void handleTag(string tagName, ICQDataStream streamContent)
         {
             switch(tagName)
             {
                 case "AnswerFlags":
-                    byte[] baAnswerFlags = readFixedBinary(streamContent, 5);
+                    byte[] baAnswerFlags = streamContent.readFixedBinary(5);
                     break;
                 case "SendFlags":
                 case "Status":
                 case "Read":
-                    byte[] baSendFlags = readFixedBinary(streamContent, 5); // TODO: this is a special Uint format: First 0x69 then four bytes of uint
+                    byte[] baSendFlags = streamContent.readFixedBinary(5); // TODO: this is a special Uint format: First 0x69 then four bytes of uint
                     break;
                 case "Body":
                     byte[] baBodyHeader = new byte[0x13];
@@ -69,7 +70,7 @@ namespace Icq2003Pro2Html
                     if (baBodyHeader[1] == 0xEB)    // as opposed to 0xEA
                         streamContent.Read(baBodyHeader, 3, 0x10);
 
-                    byte[] bodyContent = readBinary(streamContent);
+                    byte[] bodyContent = streamContent.readBinary();
                     // bodyContent contains 0x58 as start tag for plain text
                     // bodyContent contains 0x23 as start tag for plain text/rtf/plain text (yes, three times)
 
@@ -77,31 +78,30 @@ namespace Icq2003Pro2Html
                     break;
                 case "CLSID":
                     byte clsidStartTag = Convert.ToByte(streamContent.ReadByte());
-                    byte[] clsidData = readBinary(streamContent);
+                    byte[] clsidData = streamContent.readBinary();
                     break;
                 case "ExtId":
-                    byte[] extidContent = readFixedBinary(streamContent, 3);
+                    byte[] extidContent = streamContent.readFixedBinary(3);
                     break;
                 case "ExtName":
                     byte extName = Convert.ToByte(streamContent.ReadByte());
-                    MessageType = readString(streamContent);
+                    MessageType = streamContent.readString();
                     break;
                 case "ExtVers":
-                    byte[] extVers = readFixedBinary(streamContent, 5);
+                    byte[] extVers = streamContent.readFixedBinary( 5);
                     break;
                 case "Folder":
-                    byte[] folder = readFixedBinary(streamContent, 3);
+                    byte[] folder = streamContent.readFixedBinary(3);
                     break;
                 case "MsgUserName":
                     byte startTag = (byte)streamContent.ReadByte();
-                    SenderName = readString(streamContent); // or is it the receivername?
+                    SenderName = streamContent.readString(); // or is it the receivername?
                     break;
                 case "Time":
                     byte timeStartTag = (byte)streamContent.ReadByte();
                     if (timeStartTag != 0x69)
                         throw new ArgumentException("Time tag expected to be 0x69, but it was " + timeStartTag.ToString());
-                    UInt32 iUnixTime = readUInt32(streamContent);
-                    TimeOfMessage = new DateTime(1970, 1, 1).AddSeconds(iUnixTime);
+                    TimeOfMessage = streamContent.readUnixTime();
                     break;
                 // TODO: Parse remaining inner data
                 default:
@@ -112,53 +112,6 @@ namespace Icq2003Pro2Html
         protected override bool validateStartTag(uint startTag)
         {
             return 0x1 == startTag;
-        }
-
-        private string readString(Stream innerData)
-        {
-            byte[] baLength = new byte[2];
-            innerData.Read(baLength, 0, 2);
-            UInt16 length = BitConverter.ToUInt16(baLength, 0);
- 
-            byte[] baStringData = new byte[length-1];
-            innerData.Read(baStringData, 0, (int)length-1);
-            int iStringNullTerminator = innerData.ReadByte();
-            if (0 != iStringNullTerminator)
-                throw new ArgumentException("This string was not terminated by a zero!");
-            return System.Text.Encoding.Default.GetString(baStringData);
-        }
-
-        private UInt32 readUInt32(Stream streamContent)
-        {
-            byte[] baNumber = new byte[4];
-            streamContent.Read(baNumber, 0, 4);
-            return BitConverter.ToUInt32(baNumber, 0);
-        }
-
-        private byte[] readBinary(Stream innerData)
-        {
-            uint bodyLength = 0;
-            while (0 == bodyLength) // strangely, sometimes the first length tag is zero and only the following contains the length.
-            {
-                bodyLength = readUInt32(innerData);
-                if (65536 < bodyLength)
-                    throw new ArgumentOutOfRangeException("Body Length larger than 65536 bytes. That's too long!");
-            }
-
-            byte[] baBody = new byte[bodyLength];
-            innerData.Read(baBody, 0, (int)bodyLength);
-            return baBody;
-        }
-
-        private byte[] readFixedBinary(Stream streamContent, uint length)
-        {
-            if (length > 65536)
-                throw new ArgumentOutOfRangeException("length", "Length is too large...");
-
-            byte[] buf = new byte[length];
-            streamContent.Read(buf, 0, (int)length);
-
-            return buf;
         }
     }
 }

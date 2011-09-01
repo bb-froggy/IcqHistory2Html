@@ -24,7 +24,7 @@ namespace Icq2003Pro2Html
 
             using (FileStream fs = File.Open(sInputFilePath, FileMode.Open))
             {
-                ICQHistoryStream history = new ICQHistoryStream(fs);
+                FPTHistoryStream history = new FPTHistoryStream(fs);
 
                 for (DataPacket packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
                 {

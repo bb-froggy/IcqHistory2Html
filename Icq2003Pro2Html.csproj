@@ -44,8 +44,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataPacket.cs" />
+    <Compile Include="DATMessage.cs" />
+    <Compile Include="FPTHistoryStream.cs" />
     <Compile Include="HistoryStartPacket.cs" />
-    <Compile Include="ICQHistoryStream.cs" />
+    <Compile Include="ICQDataStream.cs" />
     <Compile Include="MessageContent.cs" />
     <Compile Include="MessageMetadata.cs" />
     <Compile Include="Program.cs" />

@@ -6,11 +6,11 @@ using System.IO;
 
 namespace Icq2003Pro2Html
 {
-    class ICQHistoryStream
+    class FPTHistoryStream
     {
         private Stream innerDataStream;
 
-        public ICQHistoryStream(Stream dataStream)
+        public FPTHistoryStream(Stream dataStream)
         {
             innerDataStream = dataStream;
         }
