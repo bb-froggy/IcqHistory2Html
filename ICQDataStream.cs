@@ -80,7 +80,7 @@ namespace Icq2003Pro2Html
 
         public DateTime readUnixTime()
         {
-            return new DateTime(1970, 1, 1).AddSeconds(readUInt32());
+            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(readUInt32());
         }
     
 #region Pass along stream functions to the backend

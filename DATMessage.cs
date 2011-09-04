@@ -11,6 +11,10 @@ namespace Icq2003Pro2Html
     {
         public string Text;
         public string TextRTF;
+
+        /// <summary>
+        /// This seems to be incorrect sometimes. At least in some cases, the real time was one hour later.
+        /// </summary>
         public DateTime SendDate;
         public bool isOutgoing;
 

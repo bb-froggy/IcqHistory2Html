@@ -31,6 +31,7 @@ namespace Icq2003Pro2Html
                 Console.WriteLine("File ends neither with .fpt nor with .dat. Is it really an ICQ History file?");
 
 #if DEBUG
+            Console.WriteLine("DEBUG: Finished! Press enter to exit!");
             Console.ReadLine();
 #endif
         }
@@ -43,7 +44,7 @@ namespace Icq2003Pro2Html
                 DATHistoryStream history = new DATHistoryStream(fs);
 
                 for (DATMessage packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
-                    Console.WriteLine(packet.UIN.ToString()+ " (" + packet.SendDate.ToString() + "): " + packet.Text);
+                    Console.WriteLine(packet.UIN.ToString()+ " (" + packet.SendDate.ToLocalTime().ToString() + "): " + (packet.isOutgoing?"->":"<-") + packet.Text);
             }
         }
 
