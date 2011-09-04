@@ -23,6 +23,7 @@ namespace Icq2003Pro2Html
         /// <summary>
         /// 1 - IM
         /// 4 - URL
+        /// 0x13 - Contacts
         /// </summary>
         public UInt16 iMessageType;
 
@@ -90,12 +91,38 @@ namespace Icq2003Pro2Html
 
 
             iMessageType = streamContent.readUInt16();
-            if (1 != iMessageType)
+            UIN = streamContent.readUInt32();
+
+            if (1 == iMessageType)
             {
-                Debugger.Break();   // TODO: this is an interesting special case. Let's have a look at it!
+                parseMessagePacket(streamContent);
+                return;
             }
 
-            UIN = streamContent.readUInt32();
+            if (0x0d == iMessageType)
+            {
+                // it's an internet message. The UIN will not be correct (I've seen 0x0a as UIN)
+                parseMessagePacket(streamContent);
+                return;
+            }
+
+            if (0x13 == iMessageType)
+            {
+                UInt16 contactListLength = streamContent.readUInt16();
+                //byte[] contacts = streamContent.readFixedBinary(contactListLength);
+
+                // this is a list of contacts. First comes the number of contacts in decimal. 
+                // Then, for each contact, the UIN and then the display name is stored.
+                // Different contacts as well as UIN and display name and the number of contacts are separated with 0xFE.
+                // Contact names are encoded in the current code page
+                return;
+            }
+
+            Debugger.Break();   // TODO: this is an interesting special case. Let's have a look at it!
+        }
+
+        private void parseMessagePacket(ICQDataStream streamContent)
+        {
             Text = streamContent.readString();
 
             byte[] messageFlags = streamContent.readFixedBinary(0x0a);    // Mostly 0x00, but last two bytes are 0xC8 0x01(?), 0x23 0x02, or 0x19 0x02
@@ -118,7 +145,7 @@ namespace Icq2003Pro2Html
                     Text = streamContent.readString(Encoding.UTF8);
             }
 
-//            byte[] tail = streamContent.readFixedBinary(0x08);  // zeroes for incoming messages, E4 04 00 00 00 80 80 00 for outgoing
+            //            byte[] tail = streamContent.readFixedBinary(0x08);  // zeroes for incoming messages, E4 04 00 00 00 80 80 00 for outgoing
         }
     }
 }
