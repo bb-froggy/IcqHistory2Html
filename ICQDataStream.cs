@@ -11,12 +11,22 @@ namespace Icq2003Pro2Html
     {
         private Stream streamBackend;
 
+        public ICQDataStream(byte[] baData)
+            : this(new MemoryStream(baData))
+        {
+        }
+
         public ICQDataStream(Stream streamBackend)
         {
             this.streamBackend = streamBackend;
         }
 
         public string readString()
+        {
+            return readString(Encoding.Default);
+        }
+
+        public string readString(Encoding stringEncoding)
         {
             UInt16 length = readUInt16();
 
@@ -25,7 +35,7 @@ namespace Icq2003Pro2Html
             int iStringNullTerminator = streamBackend.ReadByte();
             if (0 != iStringNullTerminator)
                 throw new ArgumentException("This string was not terminated by a zero!");
-            return System.Text.Encoding.Default.GetString(baStringData);
+            return stringEncoding.GetString(baStringData);
         }
 
         public UInt32 readUInt32()
@@ -76,17 +86,17 @@ namespace Icq2003Pro2Html
 #region Pass along stream functions to the backend
         public override bool  CanRead
         {
-	        get { return streamBackend.CanRead }
+            get { return streamBackend.CanRead; }
         }
 
         public override bool  CanSeek
         {
-	        get { return streamBackend.CanSeek }
+            get { return streamBackend.CanSeek; }
         }
 
         public override bool CanWrite
         {
-	        get { return streamBackend.CanWrite }
+            get { return streamBackend.CanWrite; }
         }
 
         public override void  Flush()
@@ -101,11 +111,11 @@ namespace Icq2003Pro2Html
 
         public override long  Position
         {
-	          get 
-	        { 
-		        return streamBackend.Position
+	        get 
+	        {
+                return streamBackend.Position;
 	        }
-	          set 
+	        set 
 	        {
                 streamBackend.Position = value;
 	        }

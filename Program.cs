@@ -22,13 +22,40 @@ namespace Icq2003Pro2Html
 
             string sInputFilePath = args[0];
 
+            if (sInputFilePath.EndsWith(".fpt", StringComparison.InvariantCultureIgnoreCase))
+                parseFPT(sInputFilePath);
+            else if (sInputFilePath.EndsWith(".dat", StringComparison.InvariantCultureIgnoreCase)
+                || sInputFilePath.EndsWith(".dat2", StringComparison.InvariantCultureIgnoreCase))
+                parseDAT(sInputFilePath);
+            else
+                Console.WriteLine("File ends neither with .fpt nor with .dat. Is it really an ICQ History file?");
+
+#if DEBUG
+            Console.ReadLine();
+#endif
+        }
+
+        private static void parseDAT(string sInputFilePath)
+        {
+            // TODO: Define some interface for History streams and put this method together with parseFPT
+            using (FileStream fs = File.Open(sInputFilePath, FileMode.Open))
+            {
+                DATHistoryStream history = new DATHistoryStream(fs);
+
+                for (DATMessage packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
+                    Console.WriteLine(packet.UIN.ToString()+ " (" + packet.SendDate.ToString() + "): " + packet.Text);
+            }
+        }
+
+        private static void parseFPT(string sInputFilePath)
+        {
             using (FileStream fs = File.Open(sInputFilePath, FileMode.Open))
             {
                 FPTHistoryStream history = new FPTHistoryStream(fs);
 
                 for (DataPacket packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
                 {
-//                    Console.WriteLine("Type: " + packet.GetType().ToString());
+                    //                    Console.WriteLine("Type: " + packet.GetType().ToString());
                     //MessageContent content = packet as MessageContent;
                     //if (null != content)
                     //    Console.WriteLine(content.Text);
@@ -38,10 +65,6 @@ namespace Icq2003Pro2Html
                         Console.WriteLine(meta.SenderName + " (" + meta.TimeOfMessage.ToString() + "): " + meta.Text);
                 }
             }
-
-#if DEBUG
-            Console.ReadLine();
-#endif
         }
 
         private static void printUsage()
@@ -49,7 +72,7 @@ namespace Icq2003Pro2Html
             Console.WriteLine("Written by Froggy. Licensed under WTFPL.");
             Console.WriteLine("Usage: icq2003Pro2Html HistoryFile");
             Console.WriteLine();
-            Console.WriteLine("HistoryFile - Full path to a ICQ 2003 History File (File extension FPT)");
+            Console.WriteLine("HistoryFile - Full path to a ICQ Pro 2003a History (DAT) or ICQ Pro 2003b History (FPT)");
         }
     }
 }

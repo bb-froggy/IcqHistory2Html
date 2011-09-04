@@ -33,7 +33,7 @@ namespace Icq2003Pro2Html
             ICQDataStream strmContent = new ICQDataStream(new MemoryStream(innerData, false));
             strmContent.Seek(0x1a, SeekOrigin.Current);  // These are always the same (almost), so differentiation is not needed
 
-            while (strmContent.Position < strmContent.Length)
+            while (strmContent.Position < strmContent.Length - 1)
             {
                 string nextLabel = strmContent.readString();
                 handleTag(nextLabel, strmContent);

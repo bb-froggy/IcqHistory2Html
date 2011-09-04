@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataPacket.cs" />
+    <Compile Include="DATHistoryStream.cs" />
     <Compile Include="DATMessage.cs" />
     <Compile Include="FPTHistoryStream.cs" />
     <Compile Include="HistoryStartPacket.cs" />
