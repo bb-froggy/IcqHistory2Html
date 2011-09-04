@@ -4,7 +4,9 @@ A .NET Command Line tool to convert old ICQ Pro 2002/2003 history files to HTML,
 
 ## Status
 
-Currently, the tool parses FPT files, but doesn't produce any output. Thus, DAT files should also be parsed.
+Currently, the tool parses FPT files (ICQ Pro 2003 b) and DAT files (ICQ Pro 2003 a and earlier).
+
+Output is not HTML currently, only some debug output to console.
 
 ## License
 
