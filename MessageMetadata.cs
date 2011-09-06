@@ -117,6 +117,16 @@ namespace Icq2003Pro2Html
                             MessageType = "AuthorizationRequestAccepted";
                             return;
                         }
+                        else if (0x00 == bodyContent[0])
+                        {
+                            MessageType = "Contacts";
+                            return;
+                        }
+                        else if (0x11 == bodyContent[0])
+                        {
+                            MessageType = "BirthdayReminder";
+                            return;
+                        }
                         else
                             throw new NotImplementedException("Message start tag " + bodyContent[0].ToString() + " not implemented");
 
@@ -164,7 +174,7 @@ namespace Icq2003Pro2Html
                 Text = Encoding.Default.GetString(baText);
                 string textUTF8Temp;
                 string textRTFTemp;
-                strmBody.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);
+                strmBody.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);   // sometimes, textUTF8Temp is plaintext with spaces in between :-(
                 TextRTF = textRTFTemp;  // TextRTF will be null before that operation anyway
                 if (null != textUTF8Temp)
                     Text = textUTF8Temp;

@@ -30,13 +30,21 @@ namespace Icq2003Pro2Html
         /// <summary>
         /// 1 - IM
         /// 4 - URL
+        /// 0x0D - Internet Message
         /// 0x13 - Contacts
         /// </summary>
         public UInt16 iMessageType;
 
         internal DATMessage(byte[] baContent)
         {
-            parseStream(new ICQDataStream(baContent));
+            try
+            {
+                parseStream(new ICQDataStream(baContent));
+            }
+            catch (EndOfStreamException eosEx)
+            {
+                throw new InvalidDataException("This is not a message packet. Data could not be read.", eosEx);
+            }
         }
 
         /// <summary>
@@ -125,6 +133,12 @@ namespace Icq2003Pro2Html
                 return;
             }
 
+            if (0x04 == iMessageType)   // URL
+            {
+                parseMessagePacket(streamContent);  // Looks almost like a message, except that a 0xFE separates a custom message from the URL
+                return;
+            }
+
             Debugger.Break();   // TODO: this is an interesting special case. Let's have a look at it!
         }
 
@@ -132,13 +146,25 @@ namespace Icq2003Pro2Html
         {
             Text = streamContent.readString();
 
-            byte[] messageFlags = streamContent.readFixedBinary(0x0a);    // Mostly 0x00, but last two bytes are 0xC8 0x01(?), 0x23 0x02, or 0x19 0x02
+            byte[] messageFlags = streamContent.readFixedBinary(0x0a);    // Mostly 0x00, but last two bytes are 0xC8 0x01(?), 0x23 0x02, or 0x19 0x02, or 0x03 0x02
             // the first four bytes seem to be ff ff ff ff in case of an SMS
             isOutgoing = ((messageFlags[4] & 0x01) == 0x01);
 
             TimeOfMessage = streamContent.readUnixTime();
 
             byte[] zeroes = streamContent.readFixedBinary(0x13);
+            if (streamContent.Position > streamContent.Length - 8)
+                return; // not enough to read anymore
+            UInt32 possibleStrangeNumber = streamContent.readUInt32();
+            if (0x00808000 != (0xFF808000 & possibleStrangeNumber))
+                streamContent.Seek(-4, SeekOrigin.Current); // ignore anything but 0x00808000
+            else
+            {
+                UInt32 nextStrangeNumber = streamContent.readUInt32();
+                if (0x00c0c0c0 != (0xFFc0c0c0 & nextStrangeNumber))
+                    return;
+                // if the two strange numbers are there... just go on and parse the RTF :-)
+            }
 
             string textUTF8Temp;
             string textRTFTemp;

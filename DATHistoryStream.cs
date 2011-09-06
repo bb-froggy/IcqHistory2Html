@@ -75,17 +75,18 @@ namespace Icq2003Pro2Html
             long positionBeforeBreaker = innerDataStream.Position;
             byte[] baBreaker = readPacket();
             addressNextBreakerPacket = BitConverter.ToInt32(baBreaker, 0x14);   // will be -1 for the last breaker
-            innerDataStream.Seek(positionBeforeBreaker + baBreaker.Length + 4, SeekOrigin.Begin);   // this seems to be how a breaker works
+            innerDataStream.Seek(positionBeforeBreaker + baBreaker.Length, SeekOrigin.Begin);   // breakers are unaligned
         }
 
         byte[] readPacket()
         {
             UInt32 packetLength = innerDataStream.readUInt32();
             innerDataStream.Seek(-4, SeekOrigin.Current);   // the length is part of the packet
-            if (0 == packetLength || packetLength > 65536 || packetLength + innerDataStream.Position > innerDataStream.Length - 1) // probably read some garbage that's not actually a packet
+            packetLength += 4;  // add 4 for the length of the length
+            if (4 >= packetLength || packetLength > 65536 || packetLength + innerDataStream.Position >= innerDataStream.Length) // probably read some garbage that's not actually a packet
                 throw new InvalidDataException("This is not a message packet. Unusal packet length: " + packetLength.ToString());
 
-            byte[] baPacketContent = innerDataStream.readFixedBinary(packetLength);
+            byte[] baPacketContent = innerDataStream.readFixedBinary(packetLength);   
             innerDataStream.Seek(0x40 - (packetLength % 0x40), SeekOrigin.Current); // packets are padded to 0x40 sizes. Sometimes more :-(
             return baPacketContent;
         }
