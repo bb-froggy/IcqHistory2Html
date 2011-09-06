@@ -49,6 +49,8 @@
     <Compile Include="FPTHistoryStream.cs" />
     <Compile Include="HistoryStartPacket.cs" />
     <Compile Include="ICQDataStream.cs" />
+    <Compile Include="IICQHistoryStream.cs" />
+    <Compile Include="IICQMessage.cs" />
     <Compile Include="MessageContent.cs" />
     <Compile Include="MessageMetadata.cs" />
     <Compile Include="Program.cs" />

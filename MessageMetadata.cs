@@ -10,18 +10,26 @@ namespace Icq2003Pro2Html
     /// <summary>
     /// Represents an instant message either received or sent
     /// </summary>
-    class MessageMetadata : DataPacket
+    class MessageMetadata : DataPacket, IICQMessage
     {
-        public string ReceiverName;
-        public string SenderName;
+        public string OtherPartyName
+        {
+            get;
+            protected set;
+        }
 
         public string Font;
 
-        public string Text;
+        public string Text { get; protected set; }
 
         public string MessageType;
 
-        public DateTime TimeOfMessage;
+        public DateTime TimeOfMessage { get; protected set; }
+
+        public bool isOutgoing
+        {
+            get { throw new NotImplementedException(); }    // maybe that's part of the MessageType?
+        }
 
         internal MessageMetadata(Stream dataStream)
             : base(dataStream)
@@ -95,7 +103,7 @@ namespace Icq2003Pro2Html
                     break;
                 case "MsgUserName":
                     byte startTag = (byte)streamContent.ReadByte();
-                    SenderName = streamContent.readString(); // or is it the receivername?
+                    OtherPartyName = streamContent.readString();
                     break;
                 case "Time":
                     byte timeStartTag = (byte)streamContent.ReadByte();
@@ -103,7 +111,6 @@ namespace Icq2003Pro2Html
                         throw new ArgumentException("Time tag expected to be 0x69, but it was " + timeStartTag.ToString());
                     TimeOfMessage = streamContent.readUnixTime();
                     break;
-                // TODO: Parse remaining inner data
                 default:
                     throw new NotImplementedException("Unknown tag \"" + tagName + "\"");
             }
@@ -112,6 +119,11 @@ namespace Icq2003Pro2Html
         protected override bool validateStartTag(uint startTag)
         {
             return 0x1 == startTag;
+        }
+
+        public override string ToString()
+        {
+            return  OtherPartyName.ToString() + " (" + TimeOfMessage.ToLocalTime().ToString() + ")[" + MessageType + "]: " + Text;
         }
     }
 }

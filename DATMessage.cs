@@ -7,18 +7,25 @@ using System.Diagnostics;
 
 namespace Icq2003Pro2Html
 {
-    class DATMessage
+    class DATMessage : IICQMessage
     {
-        public string Text;
+        public string Text { get; protected set; }
         public string TextRTF;
 
         /// <summary>
         /// This seems to be incorrect sometimes. At least in some cases, the real time was one hour later.
         /// </summary>
-        public DateTime SendDate;
-        public bool isOutgoing;
+        public DateTime TimeOfMessage { get; protected set; }
+        public bool isOutgoing { get; protected set; }
 
         public UInt32 UIN;
+        public string OtherPartyName
+        {
+            get
+            {
+                return UIN.ToString();
+            }
+        }
 
         /// <summary>
         /// 1 - IM
@@ -129,7 +136,7 @@ namespace Icq2003Pro2Html
             // the first four bytes seem to be ff ff ff ff in case of an SMS
             isOutgoing = ((messageFlags[4] & 0x01) == 0x01);
 
-            SendDate = streamContent.readUnixTime();
+            TimeOfMessage = streamContent.readUnixTime();
 
             byte[] zeroes = streamContent.readFixedBinary(0x13);
 
@@ -146,6 +153,11 @@ namespace Icq2003Pro2Html
             }
 
             //            byte[] tail = streamContent.readFixedBinary(0x08);  // zeroes for incoming messages, E4 04 00 00 00 80 80 00 for outgoing
+        }
+
+        public override string ToString()
+        {
+            return  UIN.ToString() + " (" + TimeOfMessage.ToLocalTime().ToString() + "): " + (isOutgoing ? "->" : "<-") + " " + Text;
         }
     }
 }

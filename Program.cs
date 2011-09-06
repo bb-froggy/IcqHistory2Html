@@ -36,15 +36,21 @@ namespace Icq2003Pro2Html
 #endif
         }
 
+        private static void processHistoryStream(IICQHistoryStream history)
+        {
+            for (IICQMessage packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
+            {
+                Console.WriteLine(packet.ToString());
+            }
+        }
+
         private static void parseDAT(string sInputFilePath)
         {
             // TODO: Define some interface for History streams and put this method together with parseFPT
             using (FileStream fs = File.Open(sInputFilePath, FileMode.Open))
             {
                 DATHistoryStream history = new DATHistoryStream(fs);
-
-                for (DATMessage packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
-                    Console.WriteLine(packet.UIN.ToString()+ " (" + packet.SendDate.ToLocalTime().ToString() + "): " + (packet.isOutgoing?"->":"<-") + packet.Text);
+                processHistoryStream(history);
             }
         }
 
@@ -53,18 +59,7 @@ namespace Icq2003Pro2Html
             using (FileStream fs = File.Open(sInputFilePath, FileMode.Open))
             {
                 FPTHistoryStream history = new FPTHistoryStream(fs);
-
-                for (DataPacket packet = history.parseNextPacket(); packet != null; packet = history.parseNextPacket())
-                {
-                    //                    Console.WriteLine("Type: " + packet.GetType().ToString());
-                    //MessageContent content = packet as MessageContent;
-                    //if (null != content)
-                    //    Console.WriteLine(content.Text);
-
-                    MessageMetadata meta = packet as MessageMetadata;
-                    if (null != meta)
-                        Console.WriteLine(meta.SenderName + " (" + meta.TimeOfMessage.ToString() + "): " + meta.Text);
-                }
+                processHistoryStream(history);    
             }
         }
 

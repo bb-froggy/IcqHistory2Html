@@ -6,7 +6,7 @@ using System.IO;
 
 namespace Icq2003Pro2Html
 {
-    class FPTHistoryStream
+    class FPTHistoryStream : IICQHistoryStream
     {
         private Stream innerDataStream;
 
@@ -16,33 +16,32 @@ namespace Icq2003Pro2Html
         }
 
         private bool firstPacket = true;
-        private bool lastPacketWasMessage = true;
-        
-        public DataPacket parseNextPacket()
+
+        public MessageMetadata parseNextPacket()
         {
             try
             {
                 if (firstPacket)
                 {
                     firstPacket = false;
-                    return new HistoryStartPacket(innerDataStream);
+                    HistoryStartPacket hsp = new HistoryStartPacket(innerDataStream);
                 }
+                
+                MessageMetadata mmd = new MessageMetadata(innerDataStream);
+                MessageContent mc = new MessageContent(innerDataStream);    // that's kind of redundant, but we still need to parse it, otherwise
+                                                                            // the next call to parseNextPacket will fail
 
-                if (lastPacketWasMessage)
-                {
-                    lastPacketWasMessage = false;
-                    return new MessageMetadata(innerDataStream);
-                }
-                else
-                {
-                    lastPacketWasMessage = true;
-                    return new MessageContent(innerDataStream);
-                }
+                return mmd;
             }
             catch (EndOfStreamException)
             {
                 return null;
             }
+        }
+
+        IICQMessage IICQHistoryStream.parseNextPacket()
+        {
+            return parseNextPacket();
         }
     }
 }

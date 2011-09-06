@@ -6,7 +6,7 @@ using System.IO;
 
 namespace Icq2003Pro2Html
 {
-    class DATHistoryStream
+    class DATHistoryStream : IICQHistoryStream
     {
         private ICQDataStream innerDataStream;
 
@@ -88,6 +88,11 @@ namespace Icq2003Pro2Html
             byte[] baPacketContent = innerDataStream.readFixedBinary(packetLength);
             innerDataStream.Seek(0x40 - (packetLength % 0x40), SeekOrigin.Current); // packets are padded to 0x40 sizes. Sometimes more :-(
             return baPacketContent;
+        }
+
+        IICQMessage IICQHistoryStream.parseNextPacket()
+        {
+            return parseNextPacket();
         }
     }
 }
