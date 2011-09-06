@@ -41,7 +41,9 @@ namespace Icq2003Pro2Html
         public UInt32 readUInt32()
         {
             byte[] baNumber = new byte[4];
-            streamBackend.Read(baNumber, 0, 4);
+            int lengthActuallyRead = streamBackend.Read(baNumber, 0, 4);
+            if (lengthActuallyRead < 4)
+                throw new EndOfStreamException();
             return BitConverter.ToUInt32(baNumber, 0);
         }
 
@@ -54,14 +56,24 @@ namespace Icq2003Pro2Html
 
         public byte[] readBinary()
         {
-            uint bodyLength = 0;
-            while (0 == bodyLength) // strangely, sometimes the first length tag is zero and only the following contains the length.
+            //uint bodyLength = 0;
+            //while (0 == bodyLength) // strangely, sometimes the first length tag is zero and only the following contains the length.
+            //{
+            uint bodyLength;
+            try
             {
                 bodyLength = readUInt32();
-                if (65536 < bodyLength)
-                    throw new ArgumentOutOfRangeException("Body Length larger than 65536 bytes. That's too long!");
             }
+            catch (EndOfStreamException)
+            {
+                return null;
+            }
+            if (65536 < bodyLength)
+                throw new ArgumentOutOfRangeException("Body Length larger than 65536 bytes. That's too long!");
+            //}
 
+            if (0 == bodyLength)
+                return new byte[] { };
             byte[] baBody = new byte[bodyLength];
             streamBackend.Read(baBody, 0, (int)bodyLength);
             return baBody;
@@ -80,7 +92,41 @@ namespace Icq2003Pro2Html
 
         public DateTime readUnixTime()
         {
-            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(readUInt32());
+                // This one hour seems to be necessary for correct time in ICQ, although I have no explanation
+            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(readUInt32()).AddHours(1);
+        }
+
+
+        /// <summary>
+        /// Looks whether the rest of the stream contains RTF and possibly UTF8 text. This combination occurs
+        /// in DAT files as well as FPTs. The only way to check is to look for the length of the string. If
+        /// the two types of messages are not stored in the string, nulls are returned.
+        /// </summary>
+        public void parsePossiblyRemainingRTFandUTF8(out string textRTF, out string textUTF8)
+        {
+            textRTF = null;
+            textUTF8 = null;
+
+            if (Position + 0x30 < Length - 1)  // the message is there also in another format
+            {
+                UInt16 possibleRTFLength = readUInt16();
+                if (0 != possibleRTFLength) // seems to be an RTF
+                {
+                    Seek(-2, SeekOrigin.Current);
+                    textRTF = readString();
+                }
+                if (Position + 3 < Length - 1)  // again, the message in plain text. This time it's UTF-8
+                {
+                    UInt16 possibleUTF8Length = readUInt16();
+                    if (0 != possibleUTF8Length)
+                    {
+                        Seek(-2, SeekOrigin.Current);
+                        textUTF8 = readString(Encoding.UTF8);
+                    }
+
+                    // in FPTs, we may find a file name here in case its a file transfer
+                }
+            }
         }
     
 #region Pass along stream functions to the backend

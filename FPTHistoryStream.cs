@@ -30,6 +30,7 @@ namespace Icq2003Pro2Html
                 MessageMetadata mmd = new MessageMetadata(innerDataStream);
                 MessageContent mc = new MessageContent(innerDataStream);    // that's kind of redundant, but we still need to parse it, otherwise
                                                                             // the next call to parseNextPacket will fail
+                mmd.selectTextFromContentPacket(mc);
 
                 return mmd;
             }

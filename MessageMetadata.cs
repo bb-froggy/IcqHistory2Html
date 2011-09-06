@@ -18,9 +18,8 @@ namespace Icq2003Pro2Html
             protected set;
         }
 
-        public string Font;
-
         public string Text { get; protected set; }
+        public string TextRTF { get; protected set; }
 
         public string MessageType;
 
@@ -28,7 +27,14 @@ namespace Icq2003Pro2Html
 
         public bool isOutgoing
         {
-            get { throw new NotImplementedException(); }    // maybe that's part of the MessageType?
+            get;
+            protected set;
+        }
+
+        internal void selectTextFromContentPacket(MessageContent mc)
+        {
+            if (string.IsNullOrEmpty(Text))
+                Text = mc.Text;
         }
 
         internal MessageMetadata(Stream dataStream)
@@ -39,7 +45,8 @@ namespace Icq2003Pro2Html
         protected override void parseInnerData(byte[] innerData)
         {
             ICQDataStream strmContent = new ICQDataStream(new MemoryStream(innerData, false));
-            strmContent.Seek(0x1a, SeekOrigin.Current);  // These are always the same (almost), so differentiation is not needed
+            byte[] baPacketHead = strmContent.readFixedBinary(0x1a);
+            isOutgoing = ((baPacketHead[0x16] & 0x01) == 0x01);
 
             while (strmContent.Position < strmContent.Length - 1)
             {
@@ -76,13 +83,46 @@ namespace Icq2003Pro2Html
                     streamContent.Read(baBodyHeader, 0, 0x3);
 
                     if (baBodyHeader[1] == 0xEB)    // as opposed to 0xEA
+                    {
                         streamContent.Read(baBodyHeader, 3, 0x10);
+                        //if (isOutgoing != ((baBodyHeader[4] & 0x01) == 0x01))
+                        //    throw new InvalidDataException("Outgoing flag is different in packet head and body head");
+                    }
 
                     byte[] bodyContent = streamContent.readBinary();
-                    // bodyContent contains 0x58 as start tag for plain text
-                    // bodyContent contains 0x23 as start tag for plain text/rtf/plain text (yes, three times)
+                    if (null != bodyContent)
+                    {
+                        // bodyContent contains 0x58 as start tag for only ANSI text (ICQ Pro 2003a) or RTF and ANSI (ICQ Pro 2003b)
+                        ICQDataStream strmBody = new ICQDataStream(bodyContent);
+                        if (0x58 == bodyContent[0])     // maybe bodyContent[0] and bodyContent[1] together are a package type number?
+                        {
+                            strmBody.Seek(2, SeekOrigin.Begin);
+                            UInt32 iICQ2003bIndicator = strmBody.readUInt32();
+                            if (0 != iICQ2003bIndicator)    // this means the RTF starts immediately. ICQ Pro 2003b style.
+                            {
+                                strmBody.Seek(-4, SeekOrigin.Current);
+                                parseICQ2003bBody(strmBody);
+                            }
+                        }
+                        else if (0x23 == bodyContent[0])    // this means:  ANSI + RTF + UTF-8
+                            strmBody.Seek(2, SeekOrigin.Begin);
+                        else if (0x03 == bodyContent[0])    // observed cases are only "The user has added you to his/her Contact list"
+                                                            // + "You added him/her to your Contact List"
+                        {
+                            MessageType = "Added2ContactList";
+                            return;
+                        }
+                        else if (0x01 == bodyContent[0])
+                        {
+                            MessageType = "AuthorizationRequestAccepted";
+                            return;
+                        }
+                        else
+                            throw new NotImplementedException("Message start tag " + bodyContent[0].ToString() + " not implemented");
 
-                    //Text = Encoding.Default.GetString(readBinary(ms));
+                        parseICQ2003aBody(strmBody);
+                    }
+                    
                     break;
                 case "CLSID":
                     byte clsidStartTag = Convert.ToByte(streamContent.ReadByte());
@@ -116,6 +156,32 @@ namespace Icq2003Pro2Html
             }
         }
 
+        private void parseICQ2003aBody(ICQDataStream strmBody)
+        {
+            byte[] baText = strmBody.readBinary();
+            if (null != baText && baText.Length > 0)
+            {
+                Text = Encoding.Default.GetString(baText);
+                string textUTF8Temp;
+                string textRTFTemp;
+                strmBody.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);
+                TextRTF = textRTFTemp;  // TextRTF will be null before that operation anyway
+                if (null != textUTF8Temp)
+                    Text = textUTF8Temp;
+            }
+        }
+
+        private void parseICQ2003bBody(ICQDataStream strmBody)
+        {
+            byte[] baRTFText = strmBody.readBinary();
+            if (null != baRTFText && baRTFText.Length > 0)
+                TextRTF = Encoding.Default.GetString(baRTFText);
+
+            byte[] baText = strmBody.readBinary();
+            if (null != baText && baText.Length > 0)
+                Text = Encoding.Default.GetString(baText);
+        }
+
         protected override bool validateStartTag(uint startTag)
         {
             return 0x1 == startTag;
@@ -123,7 +189,7 @@ namespace Icq2003Pro2Html
 
         public override string ToString()
         {
-            return  OtherPartyName.ToString() + " (" + TimeOfMessage.ToLocalTime().ToString() + ")[" + MessageType + "]: " + Text;
+            return OtherPartyName.ToString() + " (" + TimeOfMessage.ToLocalTime().ToString() + "): " + (isOutgoing ? "->" : "<-") + " " + Text;
         }
     }
 }

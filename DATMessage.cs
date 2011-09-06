@@ -10,7 +10,7 @@ namespace Icq2003Pro2Html
     class DATMessage : IICQMessage
     {
         public string Text { get; protected set; }
-        public string TextRTF;
+        public string TextRTF { get; protected set; }
 
         /// <summary>
         /// This seems to be incorrect sometimes. At least in some cases, the real time was one hour later.
@@ -140,17 +140,12 @@ namespace Icq2003Pro2Html
 
             byte[] zeroes = streamContent.readFixedBinary(0x13);
 
-            if (streamContent.Position + 0x30 < streamContent.Length - 1)  // the message is there also in another format
-            {
-                UInt16 possibleRTFLength = streamContent.readUInt16();
-                if (0 != possibleRTFLength) // seems to be an RTF
-                {
-                    streamContent.Seek(-2, SeekOrigin.Current);
-                    TextRTF = streamContent.readString();
-                }
-                if (streamContent.Position + 3 < streamContent.Length - 1)  // again, the message in plain text. This time it's UTF-8
-                    Text = streamContent.readString(Encoding.UTF8);
-            }
+            string textUTF8Temp;
+            string textRTFTemp;
+            streamContent.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);
+            TextRTF = textRTFTemp;  // TextRTF will be null before that operation anyway
+            if (null != textUTF8Temp)
+                Text = textUTF8Temp;
 
             //            byte[] tail = streamContent.readFixedBinary(0x08);  // zeroes for incoming messages, E4 04 00 00 00 80 80 00 for outgoing
         }

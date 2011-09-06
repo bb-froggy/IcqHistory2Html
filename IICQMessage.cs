@@ -8,6 +8,7 @@ namespace Icq2003Pro2Html
     interface IICQMessage
     {
         string Text { get; }
+        string TextRTF { get; }
 
         /// <summary>
         /// This seems to be incorrect sometimes. At least in some cases, the real time was one hour later for DATMessages.
