@@ -50,15 +50,22 @@ namespace Icq2003Pro2Html
                     long positionBeforePacket = innerDataStream.Position;
                     try
                     {
-                        byte[] baPacketData = readPacket();
-                        return new DATMessage(baPacketData);
-                    }
-                    catch (InvalidDataException ide)
-                    {
-                        if (!ide.Message.StartsWith("This is not a message packet."))
-                            throw;
+                        try
+                        {
+                            byte[] baPacketData = readPacket();
+                            return new DATMessage(baPacketData);
+                        }
+                        catch (InvalidDataException ide)
+                        {
+                            if (!ide.Message.StartsWith("This is not a message packet."))
+                                throw;
 
-                        innerDataStream.Seek(positionBeforePacket + 0x40, SeekOrigin.Begin);  // Next possible packet start
+                            innerDataStream.Seek(positionBeforePacket + 0x40, SeekOrigin.Begin);  // Next possible packet start
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception("Problem while parsing packet after position 0x" + positionBeforePacket.ToString("X"), ex);
                     }
                 }
 

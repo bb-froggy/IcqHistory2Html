@@ -29,12 +29,16 @@ namespace Icq2003Pro2Html
         public string readString(Encoding stringEncoding)
         {
             UInt16 length = readUInt16();
-
+            if (0 == length)
+                return null;
+   
             byte[] baStringData = new byte[length - 1];
-            streamBackend.Read(baStringData, 0, (int)length - 1);
+            int iBytesRead = streamBackend.Read(baStringData, 0, (int)length - 1);
+            if (iBytesRead != length - 1)
+                throw new InvalidDataException("The stream did not cover the whole string length!");
             int iStringNullTerminator = streamBackend.ReadByte();
             if (0 != iStringNullTerminator)
-                throw new ArgumentException("This string was not terminated by a zero!");
+                throw new ArgumentException("A string of length " + length.ToString() + " was not terminated by a zero!");
             return stringEncoding.GetString(baStringData);
         }
 
@@ -107,26 +111,36 @@ namespace Icq2003Pro2Html
             textRTF = null;
             textUTF8 = null;
 
-            if (Position + 0x30 < Length - 1)  // the message is there also in another format
+            textRTF = readString();
+            try
             {
-                UInt16 possibleRTFLength = readUInt16();
-                if (0 != possibleRTFLength) // seems to be an RTF
-                {
-                    Seek(-2, SeekOrigin.Current);
-                    textRTF = readString();
-                }
-                if (Position + 3 < Length - 1)  // again, the message in plain text. This time it's UTF-8
-                {
-                    UInt16 possibleUTF8Length = readUInt16();
-                    if (0 != possibleUTF8Length)
-                    {
-                        Seek(-2, SeekOrigin.Current);
-                        textUTF8 = readString(Encoding.UTF8);
-                    }
-
-                    // in FPTs, we may find a file name here in case its a file transfer
-                }
+                textUTF8 = readString(Encoding.UTF8);
             }
+            catch (InvalidDataException)
+            {
+                // okay... so this wasn't actually an UTF-8 string probably
+            }
+
+            //if (Position + 0x30 < Length - 1)  // the message is there also in another format
+            //{
+            //    UInt16 possibleRTFLength = readUInt16();
+            //    if (0 != possibleRTFLength) // seems to be an RTF
+            //    {
+            //        Seek(-2, SeekOrigin.Current);
+            //        textRTF = readString();
+            //    }
+            //    if (Position + 3 < Length - 1)  // again, the message in plain text. This time it's UTF-8
+            //    {
+            //        UInt16 possibleUTF8Length = readUInt16();
+            //        if (0 != possibleUTF8Length)
+            //        {
+            //            Seek(-2, SeekOrigin.Current);
+            //            textUTF8 = readString(Encoding.UTF8);
+            //        }
+
+            //        // in FPTs, we may find a file name here in case its a file transfer
+            //    }
+            //}
         }
     
 #region Pass along stream functions to the backend

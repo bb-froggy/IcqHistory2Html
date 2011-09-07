@@ -28,6 +28,11 @@ namespace Icq2003Pro2Html
         }
 
         /// <summary>
+        /// This number usually increases, although not linearly
+        /// </summary>
+        public UInt32 MessageNumber;
+
+        /// <summary>
         /// 1 - IM
         /// 4 - URL
         /// 0x0D - Internet Message
@@ -105,6 +110,8 @@ namespace Icq2003Pro2Html
                 throw new InvalidDataException("This is not a message packet. The identifying bits do not match!");
 
 
+            MessageNumber = BitConverter.ToUInt32(strangeHeading, 4);   // this number increases, although not linearly
+
             iMessageType = streamContent.readUInt16();
             UIN = streamContent.readUInt32();
 
@@ -139,8 +146,16 @@ namespace Icq2003Pro2Html
                 return;
             }
 
+            if (0x0c == iMessageType)   // only seen once and then it was mostly empty
+            {
+                parseMessagePacket(streamContent);
+                return;
+            }
+
             Debugger.Break();   // TODO: this is an interesting special case. Let's have a look at it!
         }
+
+        private enum AfterTextFooterType { StrangeHeaderBeforeRTF, NoFooterBeforeRTF, SMSText, NoFooterAtAll };
 
         private void parseMessagePacket(ICQDataStream streamContent)
         {
@@ -155,25 +170,76 @@ namespace Icq2003Pro2Html
             byte[] zeroes = streamContent.readFixedBinary(0x13);
             if (streamContent.Position > streamContent.Length - 8)
                 return; // not enough to read anymore
-            UInt32 possibleStrangeNumber = streamContent.readUInt32();
-            if (0x00808000 != (0xFF808000 & possibleStrangeNumber))
-                streamContent.Seek(-4, SeekOrigin.Current); // ignore anything but 0x00808000
-            else
+            if (zeroes.Any(zeroByte => zeroByte != 0x00))
+                return;     // The RTF messages are always zero in these bytes
+            UInt16 possibleRTFLength = streamContent.readUInt16();
+            byte[] baPossibleStrangeHeader = streamContent.readFixedBinary(6);      // in later versions of ICQ, these prepend the RTF
+            AfterTextFooterType footerType = parseFooterTypeFromStrangeHeader(possibleRTFLength, baPossibleStrangeHeader);
+
+            if (footerType == AfterTextFooterType.NoFooterBeforeRTF)
+                streamContent.Seek(-8, SeekOrigin.Current); // seek back the 8 bytes for the header
+            else if (footerType == AfterTextFooterType.SMSText)
+                streamContent.Seek(-6, SeekOrigin.Current); // Only an UTF-8 text will be provided
+            else if (footerType == AfterTextFooterType.NoFooterAtAll)
+                return;
+            //else
+            //{
+            //    UInt32 nextStrangeNumber = streamContent.readUInt32();
+            //    if (0x00c0c0c0 != (0xFFc0c0c0 & nextStrangeNumber))
+            //        return;
+            //    // if the two strange numbers are there... just go on and parse the RTF :-)
+            //}
+
+            try
             {
-                UInt32 nextStrangeNumber = streamContent.readUInt32();
-                if (0x00c0c0c0 != (0xFFc0c0c0 & nextStrangeNumber))
-                    return;
-                // if the two strange numbers are there... just go on and parse the RTF :-)
+                string textUTF8Temp;
+                string textRTFTemp;
+                streamContent.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);
+                TextRTF = textRTFTemp;  // TextRTF will be null before that operation anyway
+                if (null != textUTF8Temp)
+                    Text = textUTF8Temp;
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidDataException("Parsed message text \"" + Text + "\" after which a footer of type "
+                    + footerType.ToString() + " was detected, but there was a problem parsing the RTF/UTF-8 footer.", ex);
             }
 
-            string textUTF8Temp;
-            string textRTFTemp;
-            streamContent.parsePossiblyRemainingRTFandUTF8(out textRTFTemp, out textUTF8Temp);
-            TextRTF = textRTFTemp;  // TextRTF will be null before that operation anyway
-            if (null != textUTF8Temp)
-                Text = textUTF8Temp;
-
             //            byte[] tail = streamContent.readFixedBinary(0x08);  // zeroes for incoming messages, E4 04 00 00 00 80 80 00 for outgoing
+        }
+
+        private AfterTextFooterType parseFooterTypeFromStrangeHeader(ushort possibleRTFLength,byte[] baPossibleStrangeHeader)
+        {
+            if (0x00 == possibleRTFLength)
+            {
+                UInt16 possibleSMSLength = BitConverter.ToUInt16(baPossibleStrangeHeader, 0);
+                if (0x00 == possibleSMSLength || 0x0120 > possibleSMSLength)
+                    if(baPossibleStrangeHeader.Skip(2).SequenceEqual(Encoding.ASCII.GetBytes(@"SMS:")))
+                        return AfterTextFooterType.SMSText;
+                    else if (possibleSMSLength == Encoding.UTF8.GetByteCount(Text) + 1 &&
+                        Text.StartsWith(Encoding.UTF8.GetString(baPossibleStrangeHeader,2 , 4))
+                        )   // it may still be an incoming SM in later ICQ versions
+                        return AfterTextFooterType.SMSText;
+
+            }
+
+            if (possibleRTFLength < 0x1000 &&
+                baPossibleStrangeHeader.SequenceEqual(Encoding.ASCII.GetBytes(@"{\rtf1")))
+                return AfterTextFooterType.NoFooterBeforeRTF;
+
+            if (0x00c0c0c0 == (0xFFc0c0c0 & BitConverter.ToUInt32(baPossibleStrangeHeader,2)))
+                return AfterTextFooterType.StrangeHeaderBeforeRTF;
+
+            return AfterTextFooterType.NoFooterAtAll;
+
+            //    // Now check whether the PossibleStrangeHeader really looks like a strange header
+            //if (possibleRTFLength > 0x1000)
+            //    strangeHeaderFound = true;
+            //else if (baPossibleStrangeHeader.Contains((byte)0x00))
+            //    strangeHeaderFound = true;
+            //else 
+            //else
+            //    return AfterTextFooterType.NoFooterAtAll; // hmm. This does not look like an RTF but neither like a strange header.
         }
 
         public override string ToString()
