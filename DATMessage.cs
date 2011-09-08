@@ -84,7 +84,7 @@ namespace Icq2003Pro2Html
                 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
                 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
-                0x00, 0xFF, 0x00, 0xFF, 0xFF, 0xFF
+                0x00, 0xF0, 0x00, 0xFF, 0xFF, 0xFF
             };
 
             if (!byteArraysAreEqual(strangeHeading,
@@ -93,7 +93,7 @@ namespace Icq2003Pro2Html
                     0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, // the latter four bytes are disregared because of comparisonBits
                     0x50, 0x3b, 0xc1, 0x5c, 0x5c, 0x95, 0xd3, 0x11,
                     0x8d, 0xd7, 0x00, 0x10, 0x4b, 0x06, 0x46, 0x2e,
-                    0xFF, 0x02, 0xFF, 0x00, 0x00, 0x00
+                    0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00
                 },
                 comparisonBits)
                 &&
@@ -103,7 +103,7 @@ namespace Icq2003Pro2Html
                     0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x00, // the latter four bytes are disregared because of comparisonBits
                     0xe0, 0x23, 0xa3, 0xdb, 0xdf, 0xb8, 0xd1, 0x11, 
                     0x8a, 0x65, 0x00, 0x60, 0x08, 0x71, 0xa3, 0x91,
-                    0xFF, 0x02, 0xFF, 0x00, 0x00, 0x00
+                    0xFF, 0x00, 0xFF, 0x00, 0x00, 0x00
                 },
                 comparisonBits)
            )
@@ -111,6 +111,7 @@ namespace Icq2003Pro2Html
 
 
             MessageNumber = BitConverter.ToUInt32(strangeHeading, 4);   // this number increases, although not linearly
+            UInt16 SessionNumber = BitConverter.ToUInt16(strangeHeading, 24);   // this number also increases, but more slowly
 
             iMessageType = streamContent.readUInt16();
             UIN = streamContent.readUInt32();
@@ -152,6 +153,12 @@ namespace Icq2003Pro2Html
                 return;
             }
 
+            if (0x0e == iMessageType)   // Email
+            {
+                parseMessagePacket(streamContent);  // contains some specials: 0xFEs separate Sender Displayname, ?, ?, Sender mail address, ?, Message with HTML tags
+                return;
+            }
+
             Debugger.Break();   // TODO: this is an interesting special case. Let's have a look at it!
         }
 
@@ -176,10 +183,10 @@ namespace Icq2003Pro2Html
             byte[] baPossibleStrangeHeader = streamContent.readFixedBinary(6);      // in later versions of ICQ, these prepend the RTF
             AfterTextFooterType footerType = parseFooterTypeFromStrangeHeader(possibleRTFLength, baPossibleStrangeHeader);
 
-            if (footerType == AfterTextFooterType.NoFooterBeforeRTF)
+            if (footerType == AfterTextFooterType.NoFooterBeforeRTF || footerType == AfterTextFooterType.SMSText)
                 streamContent.Seek(-8, SeekOrigin.Current); // seek back the 8 bytes for the header
-            else if (footerType == AfterTextFooterType.SMSText)
-                streamContent.Seek(-6, SeekOrigin.Current); // Only an UTF-8 text will be provided
+            //else if ()
+            //    streamContent.Seek(-6, SeekOrigin.Current); // Only an UTF-8 text will be provided
             else if (footerType == AfterTextFooterType.NoFooterAtAll)
                 return;
             //else

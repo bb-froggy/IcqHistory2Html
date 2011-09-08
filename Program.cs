@@ -3,11 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Windows.Forms;
 
 namespace Icq2003Pro2Html
 {
     /// <summary>
-    /// Converts ICQ 2003 a/b History files (fpt) to human-readable HTML
+    /// Converts ICQ 2002 and ICQ 2003 a (DAT) as well as ICQ 2003 b History files (fpt) to human-readable RTF
     /// </summary>
     class Program
     {
@@ -40,6 +41,16 @@ namespace Icq2003Pro2Html
 #endif
         }
 
+        const string SendRTF = @"{\rtf1\ansi\ansicpg1252\deff0\deflang1031{\fonttbl{\f1\fnil\fcharset0 Microsoft Sans Serif;}}" + "\n" +
+            @"{\colortbl ;\red0\green0\blue255;}" + "\n" +
+            @"\viewkind4\uc1\pard\cf1\f0\fs18 **NAME** (**DATE**):\par" + "\n" +
+            @"}";
+
+        const string ReceiveRTF = @"{\rtf1\ansi\ansicpg1252\deff0\deflang1031{\fonttbl{\f1\fnil\fcharset0 Microsoft Sans Serif;}}" + "\n" +
+            @"{\colortbl ;\red255\green0\blue0;}" + "\n" +
+            @"\viewkind4\uc1\pard\cf1\f0\fs18 **NAME** (**DATE**):\par" + "\n" +
+            @"}";
+
         private static void processHistoryStream(IICQHistoryStream history, string sUserNameFilter)
         {
             ICollection<IICQMessage> packets = new LinkedList<IICQMessage>();
@@ -47,10 +58,45 @@ namespace Icq2003Pro2Html
             {
                 if (string.IsNullOrEmpty(sUserNameFilter) || packet.OtherPartyName.Contains(sUserNameFilter))
                     packets.Add(packet);
+
+                //if (packets.Count > 50)
+                //    break;          // speed up for debugging
             }
 
+            StringBuilder sbRTFOutput = new StringBuilder(100000);
+            RichTextBox rtf1 = new RichTextBox();
+
             foreach (IICQMessage orderedPacket in packets.OrderBy<IICQMessage, DateTime>(packet => packet.TimeOfMessage))
-                    Console.WriteLine(orderedPacket.ToString());
+            {
+                rtf1.Select(rtf1.TextLength, 0);
+                if (orderedPacket.isOutgoing)
+                    rtf1.SelectedRtf = SendRTF
+                        .Replace("**NAME**", "xyz")
+                        .Replace("**DATE**", orderedPacket.TimeOfMessage.ToLocalTime().ToString());
+                else
+                    rtf1.SelectedRtf = ReceiveRTF
+                        .Replace("**NAME**", orderedPacket.OtherPartyName)
+                        .Replace("**DATE**", orderedPacket.TimeOfMessage.ToLocalTime().ToString());
+
+                if (!string.IsNullOrEmpty(orderedPacket.TextRTF))
+                {
+                    rtf1.Select(rtf1.TextLength, 0);
+                    rtf1.SelectedRtf = orderedPacket.TextRTF;
+
+                    //                  Console.WriteLine(orderedPacket.TextRTF);
+
+                }
+                else
+                {
+                    rtf1.Select(rtf1.TextLength, 0);
+                    rtf1.SelectedText = orderedPacket.Text + "\n";
+                }
+
+                //Console.WriteLine(orderedPacket.ToString());
+            }
+
+            Console.WriteLine(rtf1.Rtf);
+//            Console.WriteLine(sbRTFOutput.ToString());
         }
 
         private static void parseDAT(string sInputFilePath, string sUserNameFilter)
