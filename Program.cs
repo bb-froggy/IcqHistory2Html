@@ -43,12 +43,12 @@ namespace Icq2003Pro2Html
 
         const string SendRTF = @"{\rtf1\ansi\ansicpg1252\deff0\deflang1031{\fonttbl{\f1\fnil\fcharset0 Microsoft Sans Serif;}}" + "\n" +
             @"{\colortbl ;\red0\green0\blue255;}" + "\n" +
-            @"\viewkind4\uc1\pard\cf1\f0\fs18 **NAME** (**DATE**):\par" + "\n" +
+            @"\viewkind4\uc1\pard\cf1\f0\fs14\sb60 **NAME** (**DATE**):\par" + "\n" +
             @"}";
 
         const string ReceiveRTF = @"{\rtf1\ansi\ansicpg1252\deff0\deflang1031{\fonttbl{\f1\fnil\fcharset0 Microsoft Sans Serif;}}" + "\n" +
             @"{\colortbl ;\red255\green0\blue0;}" + "\n" +
-            @"\viewkind4\uc1\pard\cf1\f0\fs18 **NAME** (**DATE**):\par" + "\n" +
+            @"\viewkind4\uc1\pard\cf1\f0\fs14\sb60 **NAME** (**DATE**):\par" + "\n" +
             @"}";
 
         private static void processHistoryStream(IICQHistoryStream history, string sUserNameFilter)
@@ -64,39 +64,38 @@ namespace Icq2003Pro2Html
             }
 
             StringBuilder sbRTFOutput = new StringBuilder(100000);
-            RichTextBox rtf1 = new RichTextBox();
+            RichTextBox rtfAggregator = new RichTextBox();
 
             foreach (IICQMessage orderedPacket in packets.OrderBy<IICQMessage, DateTime>(packet => packet.TimeOfMessage))
             {
-                rtf1.Select(rtf1.TextLength, 0);
+                rtfAggregator.Select(rtfAggregator.TextLength, 0);
                 if (orderedPacket.isOutgoing)
-                    rtf1.SelectedRtf = SendRTF
-                        .Replace("**NAME**", "xyz")
+                    rtfAggregator.SelectedRtf = SendRTF
+                        .Replace("**NAME**", "*LocalUser*")
                         .Replace("**DATE**", orderedPacket.TimeOfMessage.ToLocalTime().ToString());
                 else
-                    rtf1.SelectedRtf = ReceiveRTF
+                    rtfAggregator.SelectedRtf = ReceiveRTF
                         .Replace("**NAME**", orderedPacket.OtherPartyName)
                         .Replace("**DATE**", orderedPacket.TimeOfMessage.ToLocalTime().ToString());
 
                 if (!string.IsNullOrEmpty(orderedPacket.TextRTF))
                 {
-                    rtf1.Select(rtf1.TextLength, 0);
-                    rtf1.SelectedRtf = orderedPacket.TextRTF;
+                    rtfAggregator.Select(rtfAggregator.TextLength, 0);
+                    rtfAggregator.SelectedRtf = orderedPacket.TextRTF;
 
                     //                  Console.WriteLine(orderedPacket.TextRTF);
 
                 }
                 else
                 {
-                    rtf1.Select(rtf1.TextLength, 0);
-                    rtf1.SelectedText = orderedPacket.Text + "\n";
+                    rtfAggregator.Select(rtfAggregator.TextLength, 0);
+                    rtfAggregator.SelectedText = orderedPacket.Text + "\n";
                 }
 
                 //Console.WriteLine(orderedPacket.ToString());
             }
 
-            Console.WriteLine(rtf1.Rtf);
-//            Console.WriteLine(sbRTFOutput.ToString());
+            Console.WriteLine(rtfAggregator.Rtf);
         }
 
         private static void parseDAT(string sInputFilePath, string sUserNameFilter)
