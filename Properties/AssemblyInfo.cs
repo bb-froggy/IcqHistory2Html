@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Icq2003Pro2Html")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Convert old ICQ Pro 2002/2003 history files to RTF")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Microsoft")]
+[assembly: AssemblyCompany("BB-Froggy")]
 [assembly: AssemblyProduct("Icq2003Pro2Html")]
-[assembly: AssemblyCopyright("Copyright © Microsoft 2011")]
+[assembly: AssemblyCopyright("Licensed under WTFPL")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
